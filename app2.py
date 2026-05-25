@@ -35,12 +35,9 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.95);
         z-index: 999999;
         display: flex;
-        
-        /* FIXED: typo corrected below (was justify_content) */
         justify-content: center; 
         align-items: center;
         flex-direction: column;
-        
         backdrop-filter: blur(4px);
     }
 
@@ -58,7 +55,7 @@ st.markdown("""
     .bose-letter {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         font-weight: 900;
-        font-size: 80px; /* Made slightly bigger for impact */
+        font-size: 80px; 
         color: #000000;
         line-height: 1;
         animation: juggle 1.4s ease-in-out infinite;
@@ -188,6 +185,12 @@ if all(current_files):
                     t_min = cc1.number_input(f"Min ({t})", value=0.95, step=0.01, format="%.2f", key=f"min_{t}")
                     t_max = cc2.number_input(f"Max ({t})", value=1.05, step=0.01, format="%.2f", key=f"max_{t}")
                     tolerance_map[t] = (t_min, t_max)
+            
+            # --- NEW UPPER LIMIT SETTING ---
+            st.divider()
+            st.markdown("##### 🛑 Upper Limit Threshold")
+            st.caption("Multiplication is **SKIPPED** if the PMF multiplier is $\ge$ this value.")
+            max_multiplier_limit = st.number_input("Absolute Maximum Multiplier", value=100.0, step=1.0, format="%.2f")
 
         # --- PROCESS BUTTON ---
         st.divider()
@@ -300,7 +303,7 @@ if all(current_files):
                         t_min, t_max = tolerance_map.get(v_type, (0.95, 1.05))
 
                         col_values = pd.to_numeric(result_ads[col], errors="coerce")
-                        
+                        #result_ads[col] = result_ads[col].astype('object')
                         for i in range(len(result_ads)):
                             season = S_arr[i]
                             map_code = M_arr[i]
@@ -315,12 +318,17 @@ if all(current_files):
                             if mult is None or pd.isna(col_values.iat[i]):
                                 continue
 
+                            # --- NEW UPPER LIMIT CHECK ---
+                            if mult >= max_multiplier_limit:
+                                skipped_rows.append((i, geo, season, map_code, col, f"Exceeds Limit ({mult:.3f})"))
+                                continue
+
                             if t_min < mult < t_max:
                                 skipped_rows.append((i, geo, season, map_code, col, f"Tolerance ({mult:.3f})"))
                                 continue
 
                             updated = col_values.iat[i] * mult
-                            result_ads.at[i, col] = updated
+                            result_ads.at[i, col] = str(updated)
                             multiplied_rows.append((i, geo, season, map_code, col, col_values.iat[i], mult, updated))
                     
                     # 5. Save Results
